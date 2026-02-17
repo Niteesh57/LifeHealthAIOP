@@ -1,15 +1,63 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.crud.appointment import appointment as crud_appointment
-from app.schemas.appointment import Appointment, AppointmentCreate, AppointmentUpdate, AppointmentWithDoctor
+from app.schemas.appointment import Appointment, AppointmentCreate, AppointmentUpdate, AppointmentWithDoctor, AppointmentRemarks
 from app.models.user import User
 from app.crud.patient import patient as crud_patient
+from app.crud.doctor import doctor as crud_doctor
 from app.models.user import UserRole
 from app.schemas.hospital import Hospital
+from datetime import date
 
 router = APIRouter()
+
+@router.post("/{id}/consultation", response_model=Appointment)
+async def consultation_update(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: str,
+    remarks_in: AppointmentRemarks,
+    severity: Optional[str] = None, # Should match SeverityLevel enum value
+    next_followup: Optional[date] = None,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Doctor Consultation Endpoint.
+    
+    - Add remarks (text, medicine, lab)
+    - Update severity
+    - Set next follow-up date
+    """
+    # 1. Verify Doctor
+    doctor_profile = await crud_doctor.get_by_user_id(db, user_id=current_user.id)
+    if not doctor_profile:
+        raise HTTPException(status_code=403, detail="Only doctors can perform consultations")
+    
+    # 2. Get Appointment
+    appointment = await crud_appointment.get(db, id=id)
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+        
+    # 3. Verify Ownership (Doctor owns this appointment)
+    if appointment.doctor_id != doctor_profile.id:
+         raise HTTPException(status_code=403, detail="You are not assigned to this appointment")
+
+    # 4. Update fields
+    update_data = {}
+    if remarks_in:
+        # Convert Pydantic model to dict (or JSON compatible format)
+        update_data["remarks"] = remarks_in.model_dump()
+        
+    if severity:
+        update_data["severity"] = severity
+        
+    if next_followup:
+        update_data["next_followup"] = next_followup
+        
+    appointment = await crud_appointment.update(db, db_obj=appointment, obj_in=update_data)
+    return appointment
 
 @router.post("/", response_model=Appointment)
 async def create_appointment(

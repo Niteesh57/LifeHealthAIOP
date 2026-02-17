@@ -12,6 +12,11 @@ class CRUDDoctor(CRUDBase[Doctor, DoctorCreate, DoctorUpdate]):
         result = await db.execute(query)
         return result.scalars().first()
 
+    async def get_by_user_id(self, db: AsyncSession, *, user_id: str) -> Optional[Doctor]:
+        query = select(Doctor).filter(Doctor.user_id == user_id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
     async def search(
         self, 
         db: AsyncSession, 

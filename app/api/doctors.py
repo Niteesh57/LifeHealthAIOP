@@ -11,6 +11,33 @@ from app.models.doctor import Doctor
 
 router = APIRouter()
 
+from app.schemas.patient import Patient
+from app.models.patient import Patient as PatientModel
+from app.models.appointment import Appointment
+
+@router.get("/me/patients", response_model=List[Patient])
+async def read_doctor_patients(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get list of patients for the current doctor (based on appointments).
+    """
+    # 1. Check if user is a doctor
+    # We can check role, but we need doctor_id specifically
+    doctor_profile = await crud_doctor.get_by_user_id(db, user_id=current_user.id)
+    if not doctor_profile:
+        raise HTTPException(status_code=400, detail="Current user is not registered as a doctor")
+        
+    # 2. Get distinct patients who have appointments with this doctor
+    query = select(PatientModel).join(Appointment).filter(Appointment.doctor_id == doctor_profile.id).distinct().offset(skip).limit(limit)
+    
+    result = await db.execute(query)
+    patients = result.scalars().all()
+    return patients
+
 @router.get("/search-potential", response_model=List[UserSchema])
 async def search_potential_doctors(
     q: str = Query(..., min_length=1),

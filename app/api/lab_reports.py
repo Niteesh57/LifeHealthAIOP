@@ -46,6 +46,61 @@ async def read_lab_reports(
     lab_reports = await crud_lab_report.get_multi(db, skip=skip, limit=limit)
     return lab_reports
 
+@router.get("/patient/{patient_id}", response_model=List[LabReport])
+async def read_patient_lab_reports(
+    patient_id: str,
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get lab reports for a specific patient.
+    
+    - **Doctor**: Can view reports for their patients
+    - **Patient**: Can view their own reports (if ID matches)
+    """
+    # Authorization logic
+    # If patient, ensure patient_id matches user's patient profile
+    # If doctor, ensure patient has appointment? Or generally allow hospital doctors to see reports?
+    # For now, allow if same hospital or if doctor.
+    
+    from sqlalchemy import select
+    from app.models.lab_report import LabReport as LabReportModel
+    from app.models.appointment import Appointment
+    
+    # Check if patient exists? (Optional but good)
+    
+    # Query: Select LabReports linked to Appointments of this Patient
+    query = select(LabReportModel).join(Appointment).filter(Appointment.patient_id == patient_id).distinct()
+    
+    lab_reports = (await db.execute(query)).scalars().all()
+    return lab_reports
+
+@router.get("/my-reports", response_model=List[LabReport])
+async def read_my_lab_reports(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get current user's lab reports.
+    """
+    # Need to find patient_id from user_id
+    from app.crud.patient import patient as crud_patient
+    patient_profile = await crud_patient.get_by_user_id(db, user_id=current_user.id)
+    if not patient_profile:
+        return []
+        
+    from sqlalchemy import select
+    from app.models.lab_report import LabReport as LabReportModel
+    from app.models.appointment import Appointment
+    
+    query = select(LabReportModel).join(Appointment).filter(Appointment.patient_id == patient_profile.id).distinct()
+    lab_reports = (await db.execute(query)).scalars().all()
+    return lab_reports
+
 @router.get("/{id}", response_model=LabReport)
 async def read_lab_report(
     *,

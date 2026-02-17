@@ -13,3 +13,4 @@ Authlib
 itsdangerous
 requests
 google-genai
+git+https://github.com/huggingface/transformers.git@65dc261512cbdb1ee72b88ae5b222f2605aad8e5

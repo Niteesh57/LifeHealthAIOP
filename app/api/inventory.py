@@ -29,6 +29,33 @@ async def create_medicine(
     medicine = await crud_medicine.create(db, obj_in=medicine_in)
     return medicine
 
+from fastapi import Query
+
+@router.get("/search", response_model=List[Medicine])
+async def search_medicines(
+    q: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Search medicines by name.
+    """
+    from sqlalchemy import select
+    from app.models.medicine import Medicine as MedicineModel
+    
+    # Search by name
+    query = select(MedicineModel).filter(MedicineModel.name.ilike(f"%{q}%"))
+    
+    # Filter by hospital if user has a hospital_id (Doctor/Admin)
+    if current_user.hospital_id:
+        query = query.filter(MedicineModel.hospital_id == current_user.hospital_id)
+        
+    # Limit results
+    query = query.limit(20)
+    
+    result = await db.execute(query)
+    return result.scalars().all()
+
 @router.get("/", response_model=List[Medicine])
 async def read_medicines(
     db: AsyncSession = Depends(deps.get_db),

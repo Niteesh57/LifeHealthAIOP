@@ -9,9 +9,17 @@ from app.models import specialization, user
 from sqlalchemy import select
 from app.core.database import SessionLocal
 
+from app.agent.voiceAgent import load_model
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    # Load AI Models (MedASR)
+    try:
+        load_model()
+    except Exception as e:
+        print(f"Warning: Failed to load MedASR model on startup: {e}")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     

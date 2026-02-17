@@ -8,6 +8,29 @@ from app.models.user import User
 
 router = APIRouter()
 
+from fastapi import Query
+
+@router.get("/search", response_model=List[LabTest])
+async def search_lab_tests(
+    q: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Search lab tests by name.
+    """
+    from sqlalchemy import select
+    from app.models.lab_test import LabTest as LabTestModel
+    
+    query = select(LabTestModel).filter(LabTestModel.name.ilike(f"%{q}%"))
+    
+    if current_user.hospital_id:
+        query = query.filter(LabTestModel.hospital_id == current_user.hospital_id)
+        
+    query = query.limit(20)
+    result = await db.execute(query)
+    return result.scalars().all()
+
 @router.get("/", response_model=List[LabTest])
 async def read_lab_tests(
     db: AsyncSession = Depends(deps.get_db),

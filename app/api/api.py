@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, admin, hospitals, users, doctors, nurses, patients, inventory, lab_tests, floors, availability, search, appointments, lab_reports, agent
+from app.api import auth, admin, hospitals, users, doctors, nurses, patients, inventory, lab_tests, floors, availability, search, appointments, lab_reports, agent, voice
 
 api_router = APIRouter()
 
@@ -19,3 +19,4 @@ api_router.include_router(floors.router, prefix="/floors", tags=["floors"])
 api_router.include_router(availability.router, prefix="/availability", tags=["availability"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(agent.router, prefix="/agent", tags=["AI Agent"])
+api_router.include_router(voice.router, prefix="/voice", tags=["Voice Agent"])
