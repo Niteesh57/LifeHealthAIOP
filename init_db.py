@@ -4,7 +4,7 @@ Recreates all tables with the latest schema
 """
 import asyncio
 from app.core.database import engine, Base
-from app.models import user, hospital, doctor, nurse, patient, medicine, lab_test, floor, availability, appointment, lab_report
+from app.models import user, hospital, doctor, nurse, patient, medicine, lab_test, floor, availability, appointment, lab_report, appointment_chat, document, user_memory
 
 async def init_db():
     """Initialize database with all tables"""

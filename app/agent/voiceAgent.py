@@ -17,8 +17,6 @@ import io
 
 logger = logging.getLogger(__name__)
 
-from app.agent.LLM.llm import MEDASR_PATH
-
 from app.agent.LLM.llm import get_medasr_chain
 
 logger = logging.getLogger(__name__)

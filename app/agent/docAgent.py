@@ -19,7 +19,8 @@ class AgentState(TypedDict):
     document_type: str # 'pdf' or 'image'
     extracted_text: str # For PDFs
     local_image_path: str # For Images (downloaded temp path)
-    
+    long_term_memories: str # Context from long-term memory
+
 # Nodes
 async def load_document(state: AgentState):
     """
@@ -59,25 +60,36 @@ async def analyze_document(state: AgentState):
     
     # Get the latest question
     question = state["messages"][-1].content
+    memories = state.get("long_term_memories", "")
     
     response_text = ""
     
+    # Prepend memories to question for context
+    context_prefix = ""
+    if memories:
+        context_prefix = f"User Context (Memories):\n{memories}\n\n"
+
     if state.get("document_type") == "pdf":
         # Text Context
         context = state.get("extracted_text", "")
         # Limit context size if needed? MedGemma has 8k context probably.
-        prompt = f"System: You are an expert medical AI. Analyze the following medical report text and answer the user's question.\n\nReport Context:\n{context[:6000]}\n\nUser Question: {question}"
+        prompt = f"System: You are an expert medical AI. Analyze the following medical report text and answer the user's question.\n\n{context_prefix}Report Context:\n{context[:6000]}\n\nUser Question: {question}"
         
         response_text = llm.answer_question(question=prompt, image_path=None)
         
     else:
         # Image Context
         path = state.get("local_image_path")
-        if not path:
-             return {"messages": [HumanMessage(content="Error: Image not found.")]}
-             
-        # "Describe this image" is default if question is empty, but we have question.
-        response_text = llm.answer_question(question=question, image_path=path)
+        document_url = state.get("document_url")
+        
+        final_question = f"{context_prefix}Question: {question}"
+
+        # Check if original URL is an image (simple check or rely on previous detection)
+        if state.get("document_type") == "image":
+             response_text = llm.answer_question(question=final_question, image_path=document_url)
+        else:
+             # Fallback or if for some reason we only have local path
+             response_text = llm.answer_question(question=final_question, image_path=path)
         
         # Cleanup temp file? Maybe later or rely on OS cleanup
         try:
@@ -101,27 +113,71 @@ checkpointer = MemorySaver()
 
 app = workflow.compile(checkpointer=checkpointer)
 
-async def analyze_medical_document(user_id: str, document_url: str, question: str):
+from app.agent.Tools.MemeoryTools import add_long_term_memory, get_long_term_memories
+
+async def analyze_medical_document(user_id: str, document_url: str, question: str, appointment_id: str, db=None):
     """
     Entry point to run the agent. Returns a stream of tokens/messages if possible, 
     or the final string.
+    Saves the interaction to AppointmentChat.
     """
+    # Fetch Long Term Memories if DB is available
+    memories_str = ""
+    if db:
+        memories = await get_long_term_memories(user_id, db)
+        if memories:
+            memories_str = "\n".join([f"- {m}" for m in memories])
+
     inputs = {
         "messages": [HumanMessage(content=question)],
         "document_url": document_url,
         "document_type": "", # will be filled by load_document
         "extracted_text": "",
-        "local_image_path": ""
+        "local_image_path": "",
+        "long_term_memories": memories_str
     }
     
-    config = {"configurable": {"thread_id": user_id}}
+    # Use appointment_id as thread_id to share context between doctor and patient
+    thread_id = str(appointment_id) if appointment_id else user_id
+    
+    logger.info(f"Analyzing document with thread_id: {thread_id}, appointment_id: {appointment_id}, user_id: {user_id}")
+    
+    config = {"configurable": {"thread_id": thread_id}}
     
     # Run the graph
-    # To support streaming, we need the LLM to stream. 
-    # MedVQA.answer_question() currently waits for full generation.
-    # We can stream the *graph events*, but the LLM node is the bottleneck.
-    # For now, we await the result. Refactoring MedVQA for true token streaming 
-    # requires TextIteratorStreamer in transformers generate().
+    try:
+        result = await app.ainvoke(inputs, config=config)
+    except Exception as e:
+        logger.error(f"Error in app.ainvoke: {e}")
+        raise e
+        
+    ai_response = result["messages"][-1].content
     
-    result = await app.ainvoke(inputs, config=config)
-    return result["messages"][-1].content
+    # Save to DB if db session is provided
+    if db:
+        # Check for explicit "Remember" intent in question
+        # Heuristic: if question starts with "remember" or similar
+        lower_q = question.lower()
+        if lower_q.startswith("remember") or "save this info" in lower_q:
+             # We store the question content (stripped) as memory. 
+             # Or we could store the answer. Usually user says "Remember I am allergic to X"
+             await add_long_term_memory(user_id, question, db)
+
+        if appointment_id:
+            try:
+                from app.models.appointment_chat import AppointmentChat
+                
+                chat_entry = AppointmentChat(
+                    appointment_id=appointment_id,
+                    user_id=user_id,
+                    message=question,
+                    response=ai_response,
+                    document_url=document_url
+                )
+                db.add(chat_entry)
+                await db.commit()
+                await db.refresh(chat_entry)
+            except Exception as e:
+                logger.error(f"Failed to save chat history: {e}")
+            
+    return ai_response

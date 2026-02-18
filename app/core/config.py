@@ -34,10 +34,12 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET: str = "images"
+    GOOGLE_API_KEY: str = ""
 
     GEMINI_API_KEY: str = ""
     GENERAL_MODEL: str = ""
     
+    HUGGINGFACE_API_KEY: str = ""
     FIRST_SUPERUSER: EmailStr = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "adminpassword"
 

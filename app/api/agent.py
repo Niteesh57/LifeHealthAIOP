@@ -72,12 +72,17 @@ async def suggest_appointment(
 class DocAnalysisRequest(BaseModel):
     document_url: str
     question: str
+    appointment_id: Optional[str] = None
 
 from app.agent.docAgent import analyze_medical_document
+from typing import List
+from app.models.appointment_chat import ChatResponse, AppointmentChat
+from sqlalchemy import select
 
 @router.post("/analyze", response_model=dict)
 async def analyze_report(
     request: DocAnalysisRequest,
+    db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """
@@ -85,13 +90,33 @@ async def analyze_report(
     - Extracts text from PDF or loads image.
     - Uses VQA agent to answer the question.
     - Maintains conversation context per user.
+    - Saves chat history if appointment_id is provided.
     """
     try:
         response = await analyze_medical_document(
             user_id=current_user.id,
             document_url=request.document_url,
-            question=request.question
+            question=request.question,
+            appointment_id=request.appointment_id,
+            db=db
         )
         return {"answer": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/appointments/{appointment_id}/chat", response_model=List[ChatResponse])
+async def get_appointment_chat_history(
+    appointment_id: str,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get chat history for a specific appointment.
+    """
+    # Authorization check: User must be related to appointment (patient) or be a doctor (or admin)
+    # Ideally should check appointment ownership. For now, assuming basic access.
+    
+    query = select(AppointmentChat).where(AppointmentChat.appointment_id == appointment_id).order_by(AppointmentChat.created_at)
+    result = await db.execute(query)
+    chats = result.scalars().all()
+    return chats

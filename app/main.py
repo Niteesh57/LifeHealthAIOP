@@ -16,15 +16,15 @@ async def lifespan(app: FastAPI):
     # Startup
     # Load AI Models (MedASR)
     # Load AI Models
-    try:
-        get_medasr_chain()
-    except Exception as e:
-        print(f"Warning: Failed to load MedASR model on startup: {e}")
+    # try:
+       # get_medasr_chain()
+    # except Exception as e:
+    #     print(f"Warning: Failed to load MedASR model on startup: {e}")
 
     try:
         get_vqa_chain()
-        get_hear_model()
-        get_path_foundation()
+        # get_hear_model()
+        # get_path_foundation()
     except Exception as e:
         print(f"Warning: Failed to load MedVQA model on startup: {e}")
 

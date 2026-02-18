@@ -12,6 +12,7 @@ class Document(Base):
     file_url = Column(String, nullable=False)
     file_type = Column(String, nullable=True) # e.g. 'application/pdf', 'image/jpeg'
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    appointment_id = Column(String, ForeignKey("appointments.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     owner = relationship("User", back_populates="documents")

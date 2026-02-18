@@ -16,6 +16,7 @@ class Document(DocumentBase):
     file_url: str
     file_type: Optional[str] = None
     user_id: str
+    appointment_id: Optional[str] = None
     created_at: datetime
 
     class Config:

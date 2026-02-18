@@ -20,7 +20,7 @@ class AppointmentAgent:
     """
     
     def __init__(self):
-        genai.configure(api_key="AIzaSyD0sWYRnnfSNHUKa37FId8HgH3dCGItPSo")
+        genai.configure(api_key=str(settings.GOOGLE_API_KEY))
         self.model_name = settings.GENERAL_MODEL
     
     async def analyze_and_suggest_appointment(
