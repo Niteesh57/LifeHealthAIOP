@@ -5,20 +5,28 @@ from app.api.api import api_router
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.security import get_password_hash
-from app.models import specialization, user
+from app.models import specialization, user, document
 from sqlalchemy import select
 from app.core.database import SessionLocal
 
-from app.agent.voiceAgent import load_model
+from app.agent.LLM.llm import get_vqa_chain, get_medasr_chain, get_hear_model, get_path_foundation
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     # Load AI Models (MedASR)
+    # Load AI Models
     try:
-        load_model()
+        get_medasr_chain()
     except Exception as e:
         print(f"Warning: Failed to load MedASR model on startup: {e}")
+
+    try:
+        get_vqa_chain()
+        get_hear_model()
+        get_path_foundation()
+    except Exception as e:
+        print(f"Warning: Failed to load MedVQA model on startup: {e}")
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

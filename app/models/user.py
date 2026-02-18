@@ -34,3 +34,4 @@ class User(Base):
     hospital = relationship("Hospital", back_populates="users")
     doctor_profile = relationship("Doctor", back_populates="user", uselist=False, primaryjoin="User.id == Doctor.user_id")
     nurse_profile = relationship("Nurse", back_populates="user", uselist=False, primaryjoin="User.id == Nurse.user_id")
+    documents = relationship("Document", back_populates="owner")

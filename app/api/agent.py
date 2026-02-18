@@ -67,3 +67,31 @@ async def suggest_appointment(
             status_code=500, 
             detail=f"Failed to generate appointment suggestion: {str(e)}"
         )
+
+
+class DocAnalysisRequest(BaseModel):
+    document_url: str
+    question: str
+
+from app.agent.docAgent import analyze_medical_document
+
+@router.post("/analyze", response_model=dict)
+async def analyze_report(
+    request: DocAnalysisRequest,
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Analyze a medical document (PDF or Image) using MedGemma.
+    - Extracts text from PDF or loads image.
+    - Uses VQA agent to answer the question.
+    - Maintains conversation context per user.
+    """
+    try:
+        response = await analyze_medical_document(
+            user_id=current_user.id,
+            document_url=request.document_url,
+            question=request.question
+        )
+        return {"answer": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

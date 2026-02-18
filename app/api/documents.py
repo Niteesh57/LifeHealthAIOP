@@ -1,0 +1,57 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from typing import List
+from app.api import deps
+from app.models import document
+from app.schemas import document as doc_schema
+from app.utils.file import upload_file_to_supabase
+import logging
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+@router.post("/upload", response_model=doc_schema.Document)
+async def upload_document(
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(deps.get_db),
+    current_user = Depends(deps.get_current_active_user)
+):
+    """
+    Upload a document (PDF, Image, etc) for the current user.
+    """
+    logger.info(f"Uploading document '{title}' for user {current_user.id}")
+    
+    # 1. Upload to Supabase
+    try:
+        # We use default bucket ("images") or create a new one "documents" if user wants.
+        # For now, sticking to logic in utils/file.py which uses settings.SUPABASE_BUCKET
+        file_url = await upload_file_to_supabase(file)
+    except Exception as e:
+        logger.error(f"Supabase upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload file to storage")
+
+    # 2. Create DB Entry
+    db_doc = document.Document(
+        title=title,
+        file_url=file_url,
+        file_type=file.content_type,
+        user_id=current_user.id
+    )
+    db.add(db_doc)
+    await db.commit()
+    await db.refresh(db_doc)
+    
+    return db_doc
+
+@router.get("/my-documents", response_model=List[doc_schema.Document])
+async def get_my_documents(
+    db: Session = Depends(deps.get_db),
+    current_user = Depends(deps.get_current_active_user)
+):
+    """
+    List all documents uploaded by the current user.
+    """
+    result = await db.execute(select(document.Document).filter(document.Document.user_id == current_user.id))
+    return result.scalars().all()

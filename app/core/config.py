@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Life Health CRM"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 90
     ALGORITHM: str = "HS256"
     
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     SESSION_SECRET: str = "super-secret-session-key"
     
     IMGBB_API_KEY: str = "ac2540a154fa82c1350b98214446a8ee"
+    
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET: str = "images"
+
     GEMINI_API_KEY: str = ""
     GENERAL_MODEL: str = ""
     

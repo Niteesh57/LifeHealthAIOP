@@ -17,42 +17,19 @@ import io
 
 logger = logging.getLogger(__name__)
 
-_pipe = None
-MODEL_ID = "google/medasr"
+from app.agent.LLM.llm import MEDASR_PATH
+
+from app.agent.LLM.llm import get_medasr_chain
+
+logger = logging.getLogger(__name__)
+
 SAMPLE_RATE = 16000
-
-def get_device() -> str:
-    """Detect best available device: CUDA > CPU."""
-    if torch.cuda.is_available():
-        return "cuda"
-    return "cpu"
-
-def load_model():
-    """Lazily load the ASR pipeline."""
-    global _pipe
-    if _pipe is not None:
-        return _pipe
-
-    device = get_device()
-    logger.info(f"Loading MedASR pipeline on device: {device}")
-    
-    # Initialize pipeline with automatic chunking for long audio
-    _pipe = pipeline(
-        "automatic-speech-recognition", 
-        model=MODEL_ID, 
-        device=0 if device == "cuda" else -1,
-        chunk_length_s=30,
-        stride_length_s=5
-    )
-    
-    logger.info("MedASR pipeline loaded successfully.")
-    return _pipe
 
 def transcribe_audio(audio_bytes: bytes) -> str:
     """
-    Transcribe raw audio bytes (WAV / raw PCM) to text using MedASR pipeline.
+    Transcribe raw audio bytes (WAV / raw PCM) to text using MedASR pipeline from llm.py.
     """
-    pipe = load_model()
+    medasr = get_medasr_chain()
     
     # ─── 1. Decode Audio to Numpy (32-bit float @ 16kHz) ───
     speech = None
@@ -87,12 +64,10 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 
     # ─── 2. Run Pipeline ───
     try:
-        # Pipeline accepts numpy array directly
-        # It assumes 16kHz if not specified, but we ensure it is 16kHz above.
-        result = pipe(speech)
-        return result["text"]
+        return medasr.transcribe(speech)
     except Exception as e:
         logger.error(f"Pipeline inference error: {e}")
-        raise e
+        # Don't raise, just return empty to keep stream alive? 
+        return ""
 
 
