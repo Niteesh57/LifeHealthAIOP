@@ -125,6 +125,7 @@ async def get_appointment_chat_history(
 
 class CallTriggerRequest(BaseModel):
     phone_number: str
+    appointment_id: Optional[str] = None
 
 
 @router.post("/trigger-call")
@@ -136,7 +137,7 @@ async def trigger_outbound_call(
     Triggers an outbound call to the specified phone number using LiveKit SIP.
     """
     try:
-        await trigger_call(request.phone_number)
+        await trigger_call(request.phone_number, request.appointment_id)
         return {"message": f"Call initiated to {request.phone_number}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

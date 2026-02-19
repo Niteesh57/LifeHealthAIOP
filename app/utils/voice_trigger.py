@@ -8,7 +8,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def trigger_call(phone_number: str):
+async def trigger_call(phone_number: str, appointment_id: str = None):
     """
     Triggers an outbound call to the specified phone number using LiveKit SIP.
     """
@@ -34,12 +34,18 @@ async def trigger_call(phone_number: str):
         
         logger.info(f"Starting AI Agent in room: {room_name}")
         
+        # Prepare metadata (pass appointment_id)
+        metadata = ""
+        if appointment_id:
+            metadata = f"{{\"appointment_id\": \"{appointment_id}\"}}"
+
         # Note: In some LiveKit setups, you might rely on the agent to auto-join rooms.
         # But here we stick to the user's requested logic of explicit dispatch.
         await lkapi.agent_dispatch.create_dispatch(
             api.CreateAgentDispatchRequest(
                 agent_name="receptionist-agent",
                 room=room_name,
+                metadata=metadata
             )
         )
         
