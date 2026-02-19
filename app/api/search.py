@@ -8,6 +8,7 @@ from app.models.nurse import Nurse
 from app.models.medicine import Medicine
 from app.models.lab_test import LabTest
 from app.models.user import User
+from app.schemas.user import User as UserSchema
 from app.schemas.search import UnifiedSearchResult
 
 router = APIRouter()
@@ -50,7 +51,7 @@ async def search_resources(
         "users": []
     }
 
-@router.get("/users-for-staff", response_model=List[Any]) # Simplified return type or defining User schema
+@router.get("/users-for-staff", response_model=List[UserSchema])
 async def search_users_for_staff(
     q: str = Query(..., min_length=1),
     db: AsyncSession = Depends(deps.get_db),
@@ -79,7 +80,7 @@ async def search_users_for_staff(
     # For now returning list of users which matches Schema if Any or User response schema.
     return users
 
-@router.get("/patients", response_model=List[Any])
+@router.get("/patients", response_model=List[UserSchema])
 async def search_patients(
     q: str = Query(..., min_length=1),
     db: AsyncSession = Depends(deps.get_db),

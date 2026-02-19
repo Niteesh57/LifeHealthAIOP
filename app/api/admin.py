@@ -413,6 +413,27 @@ async def update_user_role(
     await db.refresh(user)
     return {"message": "Role updated successfully", "user": user}
 
+@router.get("/lab-assistants", response_model=List[UserSchema])
+async def list_lab_assistants(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_hospital_admin),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    """
+    List all LAB_ASSISTANT users assigned to the current hospital.
+    """
+    stmt = (
+        select(User)
+        .where(User.role == UserRole.LAB_ASSISTANT.value)
+        .where(User.hospital_id == current_user.hospital_id)
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
 @router.post("/lab-assistants/create", response_model=UserSchema)
 async def create_lab_assistant(
     *,
