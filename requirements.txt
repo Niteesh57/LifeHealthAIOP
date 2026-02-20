@@ -28,7 +28,7 @@ requests>=2.32
 # -------- LangChain Stack --------
 langchain>=0.2
 langgraph>=0.2
-
+google-generativeai
 # -------- Vector / DB --------
 supabase>=2.4
 pypdf
