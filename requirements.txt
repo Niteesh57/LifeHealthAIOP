@@ -1,6 +1,7 @@
 # -------- API Layer --------
 fastapi>=0.115
 uvicorn[standard]>=0.30
+pydantic[email]
 
 # -------- Database --------
 sqlalchemy>=2.0
